@@ -1,17 +1,22 @@
 import streamlit as st
 from docx import Document
 from io import BytesIO
+import os
 
 st.set_page_config(page_title="Word Template Filler", layout="centered")
 
-st.title("📝 Word Template Auto-Filler")
-st.caption("Fill placeholders like {{NAME}}, {{no}}, {{program}}, and download the completed document.")
+st.title("📝 Word Template Auto-Filler (Local File)")
+st.caption("Automatically fill placeholders in your local Word template (no upload needed).")
 
-uploaded_file = st.file_uploader("Upload your Word template (.docx)", type=["docx"])
+# === Path to your local Word file ===
+template_path = "tg.docx"  # ensure this file exists in the same directory as this script
 
-if uploaded_file:
-    # Input fields for each placeholder
+if not os.path.exists(template_path):
+    st.error(f"❌ '{template_path}' not found in the current directory.")
+else:
+    # Input fields for placeholders
     st.subheader("Fill in the details")
+
     name = st.text_input("Name", "JOSEPH JOSEPH")
     date = st.text_input("Date (dd/mm/yyyy)", "16/10/2025")
     title = st.text_input("Title", "POLYNOMIAL ADDITION USING ARRAY")
@@ -28,6 +33,7 @@ int main() {
     printf("Polynomial addition successful!");
     return 0;
 }""", height=220)
+
     output = st.text_area("Program Output", """Enter number of terms in first polynomial: 2
 Enter coefficient of term 1: 3
 Enter exponent of term 1: 2
@@ -43,10 +49,10 @@ Second Polynomial: 5x^1 + 6x^0
 Result : 3x^2 + 5x^1 + 10x^0""", height=200)
 
     if st.button("🔧 Generate Word File"):
-        # Read document
-        doc = Document(uploaded_file)
+        # Load the local Word document
+        doc = Document(template_path)
 
-        # Define replacements
+        # Placeholder replacements
         replacements = {
             "{{NAME}}": name,
             "{{dd/mm/yyyy}}": date,
@@ -57,24 +63,31 @@ Result : 3x^2 + 5x^1 + 10x^0""", height=200)
             "{{output}}": output,
         }
 
-        # Replace placeholders in paragraphs
+        # Replace text in paragraphs
         for p in doc.paragraphs:
             for key, value in replacements.items():
                 if key in p.text:
                     p.text = p.text.replace(key, value)
 
-        # Save edited document to buffer
+        # Replace inside tables (if any)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        for key, value in replacements.items():
+                            if key in p.text:
+                                p.text = p.text.replace(key, value)
+
+        # Save edited document to memory
         output_stream = BytesIO()
         doc.save(output_stream)
         output_stream.seek(0)
 
-        # Download button
-        st.success("✅ Document ready!")
+        st.success("✅ Document generated successfully!")
+
         st.download_button(
             label="📥 Download Edited Word File",
             data=output_stream,
             file_name="Edited_Template.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-else:
-    st.info("👆 Upload a .docx template to begin.")
